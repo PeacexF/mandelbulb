@@ -41,7 +41,13 @@ func (m Mandelbulb) DistanceEstimate(p mgl64.Vec3) float64 {
 			theta = math.Acos(clamp(z.Z()/r, -1, 1))
 			phi = math.Atan2(z.Y(), z.X())
 		}
-		dr = math.Pow(r, m.Power-1)*m.Power*dr + 1
+		// dr grows multiplicatively each iteration (roughly by a factor of
+		// power*bailout^(power-1)); for higher power/bailout combinations it
+		// can overflow f32 within a handful of iterations, which turns the
+		// final division into NaN/Inf and makes sphere tracing unable to
+		// ever register a hit or a miss for that ray. Clamp well below f32's
+		// ~3.4e38 range — legitimate values never come close to this.
+		dr = math.Min(math.Pow(r, m.Power-1)*m.Power*dr+1, 1e20)
 
 		zr := math.Pow(r, m.Power)
 		theta *= m.Power

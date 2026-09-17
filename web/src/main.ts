@@ -50,6 +50,9 @@ async function main(): Promise<void> {
   window.addEventListener('resize', resize);
   resize();
 
+  const loading = document.getElementById('loading') as HTMLDivElement;
+  loading.classList.add('hidden');
+
   let lastTime = performance.now();
   let fps = 0;
   const frame = (): void => {
@@ -89,8 +92,10 @@ async function main(): Promise<void> {
 
 main().catch((err) => {
   console.error(err);
-  const pre = document.createElement('pre');
-  pre.style.cssText = 'color:red;padding:1rem';
-  pre.textContent = String(err);
-  document.body.replaceChildren(pre);
+  document.getElementById('loading')?.classList.add('hidden');
+  document.getElementById('error')?.classList.add('visible');
+  const message = document.getElementById('error-message');
+  if (message) {
+    message.textContent = err instanceof Error ? err.message : String(err);
+  }
 });

@@ -87,7 +87,7 @@ export function createPanel(core: MandelbulbCore, renderer: Renderer, controller
   const fractalSection = section(root, 'Fractal');
   bindSlider(fractalSection, 'Power', 1, 20, 0.1, () => renderer.fractal.power, (v) => v.toFixed(1), (v) => core.setPower(v));
   bindSlider(fractalSection, 'Iterations', 1, 30, 1, () => renderer.fractal.iterations, (v) => String(v), (v) => core.setIterations(v));
-  bindSlider(fractalSection, 'Bailout', 0.5, 10, 0.1, () => renderer.fractal.bailout, (v) => v.toFixed(1), (v) => core.setBailout(v));
+  bindSlider(fractalSection, 'Bailout', 0.5, 5, 0.1, () => renderer.fractal.bailout, (v) => v.toFixed(1), (v) => core.setBailout(v));
 
   const rendererSection = section(root, 'Renderer');
   bindSlider(rendererSection, 'Max Steps', 16, 512, 1, () => renderer.renderParams.maxSteps, (v) => String(v), (v) => {
@@ -144,6 +144,14 @@ export function createPanel(core: MandelbulbCore, renderer: Renderer, controller
     if (document.activeElement !== fogColorInput) {
       fogColorInput.value = rgbToHex(renderer.display.fogColor);
     }
+  });
+
+  const postSection = section(root, 'Post-Processing');
+  bindSlider(postSection, 'Vignette', 0, 1, 0.01, () => renderer.post.vignette, (v) => v.toFixed(2), (v) => {
+    renderer.post.vignette = v;
+  });
+  bindSlider(postSection, 'Dither', 0, 4, 0.1, () => renderer.post.dither, (v) => v.toFixed(1), (v) => {
+    renderer.post.dither = v;
   });
 
   const presetsSection = section(root, 'Presets');

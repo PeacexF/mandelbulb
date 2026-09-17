@@ -11,6 +11,7 @@ struct Uniforms {
   display_params: vec4f,
   fog_color: vec4f,
   camera_pos_lo: vec4f,
+  post_params: vec4f,
 };
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;

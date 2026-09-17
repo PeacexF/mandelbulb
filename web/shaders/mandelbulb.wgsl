@@ -19,7 +19,13 @@ fn mandelbulb_de(pos: vec3f) -> f32 {
       theta = acos(clamp(z.z / r, -1.0, 1.0));
       phi = atan2(z.y, z.x);
     }
-    dr = pow(r, power - 1.0) * power * dr + 1.0;
+    // dr grows multiplicatively each iteration; for higher power/bailout
+    // combinations it can overflow f32 within a handful of iterations,
+    // turning the final division into NaN/Inf. Since NaN compares false
+    // against everything, a poisoned distance can never satisfy the hit
+    // *or* the miss check in the ray marcher, burning the full step budget
+    // on that ray forever. Clamp well below f32's ~3.4e38 range.
+    dr = min(pow(r, power - 1.0) * power * dr + 1.0, 1e20);
 
     let zr = pow(r, power);
     theta = theta * power;

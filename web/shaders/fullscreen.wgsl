@@ -153,6 +153,22 @@ fn tonemap(color: vec3f) -> vec3f {
   return pow(max(exposed, vec3f(0.0)), vec3f(1.0 / gamma));
 }
 
+// Interleaved gradient noise (Jimenez) — a cheap per-pixel hash used to
+// dither the final 8-bit output and break up banding in smooth gradients.
+fn dither_noise(frag_coord: vec2f) -> f32 {
+  return fract(52.9829189 * fract(dot(frag_coord, vec2f(0.06711056, 0.00583715))));
+}
+
+fn post_process(color: vec3f, ndc: vec2f, frag_coord: vec2f) -> vec3f {
+  let vignette_strength = uniforms.post_params.x;
+  let dither_strength = uniforms.post_params.y;
+
+  let vignette = clamp(1.0 - vignette_strength * dot(ndc, ndc) * 0.25, 0.0, 1.0);
+  let dithered = color + vec3f((dither_noise(frag_coord) - 0.5) * dither_strength / 255.0);
+
+  return dithered * vignette;
+}
+
 @fragment
 fn fs_main(in: VertexOut) -> @location(0) vec4f {
   let res = uniforms.resolution_time.xy;
@@ -181,9 +197,9 @@ fn fs_main(in: VertexOut) -> @location(0) vec4f {
     let fog_factor = clamp(1.0 - exp(-fog_density * result.distance), 0.0, 1.0);
     let fogged = mix(color, uniforms.fog_color.rgb, fog_factor);
 
-    return vec4f(tonemap(fogged), 1.0);
+    return vec4f(post_process(tonemap(fogged), ndc, in.position.xy), 1.0);
   }
 
   let sky = mix(uniforms.fog_color.rgb, vec3f(0.0, 0.0, 0.0), ndc.y * 0.5 + 0.5);
-  return vec4f(tonemap(sky), 1.0);
+  return vec4f(post_process(tonemap(sky), ndc, in.position.xy), 1.0);
 }

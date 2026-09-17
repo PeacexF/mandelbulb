@@ -69,11 +69,56 @@
       }
       #panel button:hover { background: rgba(255, 255, 255, 0.2); }
       #panel .diagnostics { margin: 0; white-space: pre; }
+
+      #loading, #error {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        background: #000;
+        font: 13px/1.5 monospace;
+        z-index: 10;
+        transition: opacity 0.4s ease;
+      }
+      #loading { color: rgba(255, 255, 255, 0.7); }
+      #loading.hidden { opacity: 0; pointer-events: none; }
+      #loading .spinner {
+        width: 28px;
+        height: 28px;
+        border: 2px solid rgba(255, 255, 255, 0.15);
+        border-top-color: rgba(255, 255, 255, 0.75);
+        border-radius: 50%;
+        animation: spin 0.9s linear infinite;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      #error {
+        display: none;
+        color: #ff8080;
+        text-align: center;
+        padding: 24px;
+        z-index: 11;
+      }
+      #error.visible { display: flex; }
+      #error h1 { font-size: 15px; margin: 0; color: #fff; }
+      #error p { max-width: 440px; margin: 0; opacity: 0.85; }
     </style>
   </head>
   <body>
     <canvas id="canvas"></canvas>
     <div id="hint">click to look &middot; WASD move &middot; Q/E up/down &middot; shift sprint &middot; C toggle orbit &middot; scroll zoom (orbit) &middot; [ ] power &middot; R reset &middot; H hide panel &middot; 1-6 presets</div>
+    <div id="loading">
+      <div class="spinner"></div>
+      <div>loading mandelbulb&hellip;</div>
+    </div>
+    <div id="error">
+      <h1>Couldn&rsquo;t start the renderer</h1>
+      <p id="error-message"></p>
+    </div>
     <script src="/wasm_exec.js"></script>
     <script type="module" src="/src/main.ts"></script>
   </body>

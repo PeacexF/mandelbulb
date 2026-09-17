@@ -22,6 +22,7 @@ export interface Preset {
     aoIntensity: number;
     fogColor: [number, number, number];
   };
+  post: { vignette: number; dither: number };
 }
 
 const DEG = Math.PI / 180;
@@ -45,6 +46,7 @@ const defaultDisplay = {
 
 const defaultRender = { maxSteps: 128, epsilon: 0.001, maxDistance: 50 };
 const defaultCamera = { position: [0, 0, 3] as [number, number, number], yaw: 0, pitch: 0, fov: 60 * DEG };
+const defaultPost = { vignette: 0.3, dither: 1 };
 
 export const PRESETS: Preset[] = [
   {
@@ -54,6 +56,7 @@ export const PRESETS: Preset[] = [
     render: defaultRender,
     light: defaultLight,
     display: defaultDisplay,
+    post: defaultPost,
   },
   {
     name: 'High Power',
@@ -62,30 +65,34 @@ export const PRESETS: Preset[] = [
     render: { maxSteps: 160, epsilon: 0.0008, maxDistance: 50 },
     light: defaultLight,
     display: defaultDisplay,
+    post: defaultPost,
   },
   {
     name: 'Low Power',
-    fractal: { power: 3, iterations: 16, bailout: 5 },
+    fractal: { power: 3, iterations: 8, bailout: 3 },
     camera: { position: [0, 0, 4], yaw: 0, pitch: 0, fov: 60 * DEG },
     render: defaultRender,
     light: defaultLight,
     display: defaultDisplay,
+    post: defaultPost,
   },
   {
     name: 'Dense',
-    fractal: { power: 8, iterations: 16, bailout: 2 },
+    fractal: { power: 8, iterations: 12, bailout: 2 },
     camera: { position: [0, 0, 2.5], yaw: 0, pitch: 0, fov: 60 * DEG },
     render: { maxSteps: 200, epsilon: 0.0005, maxDistance: 50 },
     light: defaultLight,
     display: defaultDisplay,
+    post: defaultPost,
   },
   {
     name: 'Spiky',
-    fractal: { power: 12, iterations: 10, bailout: 1.5 },
+    fractal: { power: 12, iterations: 8, bailout: 1.5 },
     camera: { position: [0, 0, 3.5], yaw: 0, pitch: 0, fov: 60 * DEG },
     render: defaultRender,
     light: { ...defaultLight, shininess: 64, specularIntensity: 0.7 },
     display: defaultDisplay,
+    post: { vignette: 0.4, dither: 1 },
   },
   {
     name: 'Deep Zoom',
@@ -94,6 +101,7 @@ export const PRESETS: Preset[] = [
     render: { maxSteps: 200, epsilon: 0.0002, maxDistance: 20 },
     light: defaultLight,
     display: defaultDisplay,
+    post: { vignette: 0.5, dither: 1 },
   },
 ];
 
@@ -114,6 +122,7 @@ export function captureCurrentPreset(name: string, state: CoreState, renderer: R
       color: [...renderer.light.color],
     },
     display: { ...renderer.display, fogColor: [...renderer.display.fogColor] },
+    post: { ...renderer.post },
   };
 }
 
@@ -140,6 +149,7 @@ export function applyPreset(
     color: [...preset.light.color],
   };
   renderer.display = { ...preset.display, fogColor: [...preset.display.fogColor] };
+  renderer.post = { ...preset.post };
 }
 
 export function presetToJSON(preset: Preset): string {

@@ -2,7 +2,7 @@ import commonWGSL from '../../shaders/common.wgsl?raw';
 import mandelbulbWGSL from '../../shaders/mandelbulb.wgsl?raw';
 import fullscreenWGSL from '../../shaders/fullscreen.wgsl?raw';
 
-const UNIFORM_FLOATS = 48;
+const UNIFORM_FLOATS = 52;
 const UNIFORM_SIZE = UNIFORM_FLOATS * 4;
 
 export interface FractalParams {
@@ -42,6 +42,11 @@ export interface DisplayParams {
   fogColor: [number, number, number];
 }
 
+export interface PostParams {
+  vignette: number;
+  dither: number;
+}
+
 export class Renderer {
   private device: GPUDevice;
   private context: GPUCanvasContext;
@@ -73,6 +78,10 @@ export class Renderer {
     fogDensity: 0,
     aoIntensity: 1,
     fogColor: [0.02, 0.02, 0.05],
+  };
+  post: PostParams = {
+    vignette: 0.3,
+    dither: 1,
   };
 
   adapterInfo = '';
@@ -191,6 +200,7 @@ export class Renderer {
     const r = this.renderParams;
     const l = this.light;
     const d = this.display;
+    const p = this.post;
 
     // Camera position is split into an f32 (hi, lo) pair so the shader can
     // recover precision beyond a single f32 via compensated summation
@@ -211,6 +221,7 @@ export class Renderer {
       d.exposure, d.gamma, d.fogDensity, d.aoIntensity,
       d.fogColor[0], d.fogColor[1], d.fogColor[2], 0,
       posLo[0], posLo[1], posLo[2], 0,
+      p.vignette, p.dither, 0, 0,
     ]);
 
     this.device.queue.writeBuffer(this.uniformBuffer, 0, data);
