@@ -2,7 +2,7 @@ import commonWGSL from '../../shaders/common.wgsl?raw';
 import mandelbulbWGSL from '../../shaders/mandelbulb.wgsl?raw';
 import fullscreenWGSL from '../../shaders/fullscreen.wgsl?raw';
 
-const UNIFORM_FLOATS = 36;
+const UNIFORM_FLOATS = 44;
 const UNIFORM_SIZE = UNIFORM_FLOATS * 4;
 
 export interface FractalParams {
@@ -34,6 +34,14 @@ export interface LightParams {
   shadowSoftness: number;
 }
 
+export interface DisplayParams {
+  exposure: number;
+  gamma: number;
+  fogDensity: number;
+  aoIntensity: number;
+  fogColor: [number, number, number];
+}
+
 export class Renderer {
   private device: GPUDevice;
   private context: GPUCanvasContext;
@@ -59,14 +67,25 @@ export class Renderer {
     shininess: 32,
     shadowSoftness: 16,
   };
+  display: DisplayParams = {
+    exposure: 1,
+    gamma: 1,
+    fogDensity: 0,
+    aoIntensity: 1,
+    fogColor: [0.02, 0.02, 0.05],
+  };
+
+  adapterInfo = '';
 
   private constructor(
     device: GPUDevice,
     context: GPUCanvasContext,
     format: GPUTextureFormat,
+    adapterInfo: string,
   ) {
     this.device = device;
     this.context = context;
+    this.adapterInfo = adapterInfo;
 
     const module = device.createShaderModule({
       code: `${commonWGSL}\n${mandelbulbWGSL}\n${fullscreenWGSL}`,
@@ -113,7 +132,10 @@ export class Renderer {
     const format = navigator.gpu.getPreferredCanvasFormat();
     context.configure({ device, format, alphaMode: 'opaque' });
 
-    return new Renderer(device, context, format);
+    const info = adapter.info;
+    const adapterInfo = info ? `${info.vendor} ${info.architecture} ${info.description}`.trim() : 'unknown GPU';
+
+    return new Renderer(device, context, format, adapterInfo);
   }
 
   resize(width: number, height: number): void {
@@ -129,6 +151,7 @@ export class Renderer {
     const f = this.fractal;
     const r = this.renderParams;
     const l = this.light;
+    const d = this.display;
 
     const data = new Float32Array([
       canvas.width, canvas.height, time, c.fov,
@@ -140,6 +163,8 @@ export class Renderer {
       l.direction[0], l.direction[1], l.direction[2], l.ambient,
       l.color[0], l.color[1], l.color[2], l.specularIntensity,
       l.shininess, l.shadowSoftness, 0, 0,
+      d.exposure, d.gamma, d.fogDensity, d.aoIntensity,
+      d.fogColor[0], d.fogColor[1], d.fogColor[2], 0,
     ]);
 
     this.device.queue.writeBuffer(this.uniformBuffer, 0, data);

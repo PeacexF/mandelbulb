@@ -91,6 +91,7 @@ fn shade(pos: vec3f, rd: vec3f, normal: vec3f) -> vec3f {
   let light_color = uniforms.light_color_specular.xyz;
   let specular_intensity = uniforms.light_color_specular.w;
   let shininess = uniforms.shading_extra.x;
+  let ao_intensity = uniforms.display_params.w;
 
   let diffuse = max(dot(normal, light_dir), 0.0);
 
@@ -99,10 +100,17 @@ fn shade(pos: vec3f, rd: vec3f, normal: vec3f) -> vec3f {
   let specular = pow(max(dot(normal, half_dir), 0.0), shininess) * specular_intensity;
 
   let shadow = soft_shadow(pos + normal * 0.001, light_dir);
-  let ao = ambient_occlusion(pos, normal);
+  let ao = mix(1.0, ambient_occlusion(pos, normal), ao_intensity);
 
   let lit = light_color * (diffuse + specular) * shadow;
   return (lit + vec3f(ambient)) * ao;
+}
+
+fn tonemap(color: vec3f) -> vec3f {
+  let exposure = uniforms.display_params.x;
+  let gamma = uniforms.display_params.y;
+  let exposed = color * exposure;
+  return pow(max(exposed, vec3f(0.0)), vec3f(1.0 / gamma));
 }
 
 @fragment
@@ -128,9 +136,14 @@ fn fs_main(in: VertexOut) -> @location(0) vec4f {
     let pos = camera_pos + rd * result.distance;
     let normal = mandelbulb_normal(pos);
     let color = shade(pos, rd, normal);
-    return vec4f(color, 1.0);
+
+    let fog_density = uniforms.display_params.z;
+    let fog_factor = clamp(1.0 - exp(-fog_density * result.distance), 0.0, 1.0);
+    let fogged = mix(color, uniforms.fog_color.rgb, fog_factor);
+
+    return vec4f(tonemap(fogged), 1.0);
   }
 
-  let sky = mix(vec3f(0.02, 0.02, 0.05), vec3f(0.0, 0.0, 0.0), ndc.y * 0.5 + 0.5);
-  return vec4f(sky, 1.0);
+  let sky = mix(uniforms.fog_color.rgb, vec3f(0.0, 0.0, 0.0), ndc.y * 0.5 + 0.5);
+  return vec4f(tonemap(sky), 1.0);
 }

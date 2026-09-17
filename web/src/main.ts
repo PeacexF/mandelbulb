@@ -2,6 +2,8 @@ import { Renderer } from './gpu/renderer';
 import { InputState } from './input/input-state';
 import { CameraController } from './input/camera-controller';
 import { loadCore } from './wasm/core';
+import { createPanel } from './ui/panel';
+import { PRESETS, applyPreset } from './presets';
 
 async function main(): Promise<void> {
   const canvas = document.getElementById('canvas') as HTMLCanvasElement;
@@ -9,6 +11,7 @@ async function main(): Promise<void> {
   const core = await loadCore();
   const input = new InputState();
   const controller = new CameraController();
+  const panel = createPanel(core, renderer, controller);
 
   let state = core.getState();
 
@@ -30,6 +33,14 @@ async function main(): Promise<void> {
     } else if (e.code === 'KeyR') {
       core.reset();
       controller.reset();
+    } else if (e.code === 'KeyH') {
+      panel.toggle();
+    } else if (e.code.startsWith('Digit')) {
+      const index = Number(e.code.slice(5)) - 1;
+      const preset = PRESETS[index];
+      if (preset) {
+        applyPreset(preset, core, renderer, controller);
+      }
     }
   });
 
@@ -40,10 +51,12 @@ async function main(): Promise<void> {
   resize();
 
   let lastTime = performance.now();
+  let fps = 0;
   const frame = (): void => {
     const now = performance.now();
     const dt = Math.min((now - lastTime) / 1000, 0.1);
     lastTime = now;
+    fps = fps === 0 ? 1 / dt : fps * 0.9 + (1 / dt) * 0.1;
 
     const [dx, dy] = input.consumeMouseDelta();
     if (dx !== 0 || dy !== 0) {
@@ -64,6 +77,10 @@ async function main(): Promise<void> {
     renderer.camera = controller.getUniform();
     renderer.fractal = { power: state.power, iterations: state.iterations, bailout: state.bailout };
     renderer.render();
+
+    panel.refresh();
+    panel.updateDiagnostics(fps, dt * 1000);
+
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);

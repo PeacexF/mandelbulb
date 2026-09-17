@@ -18,11 +18,62 @@
         border-radius: 4px;
         pointer-events: none;
       }
+      #panel {
+        position: fixed;
+        top: 12px;
+        right: 12px;
+        width: 260px;
+        max-height: calc(100vh - 24px);
+        overflow-y: auto;
+        background: rgba(0, 0, 0, 0.55);
+        color: rgba(255, 255, 255, 0.85);
+        font: 11px/1.4 monospace;
+        padding: 4px 10px 10px;
+        border-radius: 6px;
+      }
+      #panel.hidden { display: none; }
+      #panel fieldset {
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 4px;
+        margin: 8px 0;
+        padding: 4px 8px 8px;
+      }
+      #panel legend {
+        padding: 0 4px;
+        color: rgba(255, 255, 255, 0.6);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      #panel .row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin: 4px 0;
+      }
+      #panel .row label { flex: 0 0 92px; }
+      #panel .row input[type="range"] { flex: 1; }
+      #panel .readout { flex: 0 0 52px; text-align: right; }
+      #panel .presets {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      #panel button {
+        background: rgba(255, 255, 255, 0.1);
+        color: inherit;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 4px;
+        padding: 3px 6px;
+        font: inherit;
+        cursor: pointer;
+      }
+      #panel button:hover { background: rgba(255, 255, 255, 0.2); }
+      #panel .diagnostics { margin: 0; white-space: pre; }
     </style>
   </head>
   <body>
     <canvas id="canvas"></canvas>
-    <div id="hint">click to look &middot; WASD move &middot; Q/E up/down &middot; shift sprint &middot; C toggle orbit &middot; scroll zoom (orbit) &middot; [ ] power &middot; R reset</div>
+    <div id="hint">click to look &middot; WASD move &middot; Q/E up/down &middot; shift sprint &middot; C toggle orbit &middot; scroll zoom (orbit) &middot; [ ] power &middot; R reset &middot; H hide panel &middot; 1-6 presets</div>
     <script src="/wasm_exec.js"></script>
     <script type="module" src="/src/main.ts"></script>
   </body>

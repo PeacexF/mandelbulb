@@ -71,6 +71,11 @@ export class CameraController {
     this.mode = this.mode === 'free' ? 'orbit' : 'free';
   }
 
+  setPose(position: Vec3, yaw: number, pitch: number): void {
+    this.mode = 'free';
+    this.free = { position, yaw, pitch, velocity: [0, 0, 0] };
+  }
+
   look(dx: number, dy: number): void {
     const s = this.mode === 'free' ? this.free : this.orbit;
     s.yaw += dx * this.mouseSensitivity;
