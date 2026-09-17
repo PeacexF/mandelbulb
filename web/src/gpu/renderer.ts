@@ -76,6 +76,16 @@ export class Renderer {
   };
 
   adapterInfo = '';
+  renderScale = 1;
+  supportsGPUTiming = false;
+  gpuTimeMs: number | null = null;
+
+  private cssWidth = 0;
+  private cssHeight = 0;
+  private timestampQuerySet: GPUQuerySet | null = null;
+  private timestampResolveBuffer: GPUBuffer | null = null;
+  private timestampReadbackBuffer: GPUBuffer | null = null;
+  private timestampReadPending = false;
 
   private constructor(
     device: GPUDevice,
@@ -111,6 +121,19 @@ export class Renderer {
       layout: this.pipeline.getBindGroupLayout(0),
       entries: [{ binding: 0, resource: { buffer: this.uniformBuffer } }],
     });
+
+    if (device.features.has('timestamp-query')) {
+      this.supportsGPUTiming = true;
+      this.timestampQuerySet = device.createQuerySet({ type: 'timestamp', count: 2 });
+      this.timestampResolveBuffer = device.createBuffer({
+        size: 16,
+        usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC,
+      });
+      this.timestampReadbackBuffer = device.createBuffer({
+        size: 16,
+        usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+      });
+    }
   }
 
   static async create(canvas: HTMLCanvasElement): Promise<Renderer> {
@@ -123,7 +146,10 @@ export class Renderer {
       throw new Error('No suitable GPU adapter found');
     }
 
-    const device = await adapter.requestDevice();
+    const requiredFeatures: GPUFeatureName[] = adapter.features.has('timestamp-query')
+      ? ['timestamp-query']
+      : [];
+    const device = await adapter.requestDevice({ requiredFeatures });
     const context = canvas.getContext('webgpu');
     if (!context) {
       throw new Error('Failed to acquire WebGPU canvas context');
@@ -138,10 +164,23 @@ export class Renderer {
     return new Renderer(device, context, format, adapterInfo);
   }
 
-  resize(width: number, height: number): void {
+  resize(cssWidth: number, cssHeight: number): void {
+    this.cssWidth = cssWidth;
+    this.cssHeight = cssHeight;
+
+    const dpr = window.devicePixelRatio || 1;
+    const width = Math.max(1, Math.floor(cssWidth * dpr * this.renderScale));
+    const height = Math.max(1, Math.floor(cssHeight * dpr * this.renderScale));
+
     const canvas = this.context.canvas as HTMLCanvasElement;
-    canvas.width = width;
-    canvas.height = height;
+    if (canvas.width !== width || canvas.height !== height) {
+      canvas.width = width;
+      canvas.height = height;
+    }
+  }
+
+  refreshSize(): void {
+    this.resize(this.cssWidth, this.cssHeight);
   }
 
   private writeUniforms(): void {
@@ -183,6 +222,13 @@ export class Renderer {
           storeOp: 'store',
         },
       ],
+      timestampWrites: this.timestampQuerySet
+        ? {
+            querySet: this.timestampQuerySet,
+            beginningOfPassWriteIndex: 0,
+            endOfPassWriteIndex: 1,
+          }
+        : undefined,
     });
 
     pass.setPipeline(this.pipeline);
@@ -190,6 +236,32 @@ export class Renderer {
     pass.draw(3);
     pass.end();
 
-    this.device.queue.submit([encoder.finish()]);
+    const readback = this.timestampReadbackBuffer;
+    if (this.timestampQuerySet && this.timestampResolveBuffer && readback && !this.timestampReadPending) {
+      encoder.resolveQuerySet(this.timestampQuerySet, 0, 2, this.timestampResolveBuffer, 0);
+      encoder.copyBufferToBuffer(this.timestampResolveBuffer, 0, readback, 0, 16);
+      this.device.queue.submit([encoder.finish()]);
+      this.readGPUTiming(readback);
+    } else {
+      this.device.queue.submit([encoder.finish()]);
+    }
+  }
+
+  private readGPUTiming(readback: GPUBuffer): void {
+    this.timestampReadPending = true;
+    readback
+      .mapAsync(GPUMapMode.READ)
+      .then(() => {
+        const times = new BigInt64Array(readback.getMappedRange());
+        const deltaNs = Number(times[1] - times[0]);
+        readback.unmap();
+        if (deltaNs >= 0) {
+          this.gpuTimeMs = deltaNs / 1e6;
+        }
+        this.timestampReadPending = false;
+      })
+      .catch(() => {
+        this.timestampReadPending = false;
+      });
   }
 }

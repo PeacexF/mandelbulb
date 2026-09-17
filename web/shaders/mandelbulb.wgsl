@@ -35,15 +35,20 @@ fn mandelbulb_de(pos: vec3f) -> f32 {
   return 0.5 * log(r) * r / dr;
 }
 
+// Tetrahedral gradient estimate: 4 taps instead of the 6 a central-difference
+// scheme needs, using the fact that any 4 non-coplanar directions are enough
+// to recover a 3D gradient (Quilez's distance-field normal trick).
 fn mandelbulb_normal(pos: vec3f) -> vec3f {
   let h = 0.0001;
-  let dx = vec3f(h, 0.0, 0.0);
-  let dy = vec3f(0.0, h, 0.0);
-  let dz = vec3f(0.0, 0.0, h);
+  let k0 = vec3f(1.0, -1.0, -1.0);
+  let k1 = vec3f(-1.0, -1.0, 1.0);
+  let k2 = vec3f(-1.0, 1.0, -1.0);
+  let k3 = vec3f(1.0, 1.0, 1.0);
 
-  return normalize(vec3f(
-    mandelbulb_de(pos + dx) - mandelbulb_de(pos - dx),
-    mandelbulb_de(pos + dy) - mandelbulb_de(pos - dy),
-    mandelbulb_de(pos + dz) - mandelbulb_de(pos - dz),
-  ));
+  return normalize(
+    k0 * mandelbulb_de(pos + k0 * h) +
+    k1 * mandelbulb_de(pos + k1 * h) +
+    k2 * mandelbulb_de(pos + k2 * h) +
+    k3 * mandelbulb_de(pos + k3 * h),
+  );
 }

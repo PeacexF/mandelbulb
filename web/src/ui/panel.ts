@@ -105,6 +105,9 @@ export function createPanel(core: MandelbulbCore, renderer: Renderer, controller
   bindSlider(rendererSection, 'Shadow Softness', 1, 64, 1, () => renderer.light.shadowSoftness, (v) => String(v), (v) => {
     renderer.light.shadowSoftness = v;
   });
+  bindSlider(rendererSection, 'Render Scale', 0.1, 2, 0.05, () => renderer.renderScale, (v) => v.toFixed(2), (v) => {
+    renderer.renderScale = v;
+  });
 
   const cameraSection = section(root, 'Camera');
   bindSlider(cameraSection, 'FOV', 20, 120, 1, () => controller.fov / DEG, (v) => `${v.toFixed(0)}°`, (v) => {
@@ -196,10 +199,12 @@ export function createPanel(core: MandelbulbCore, renderer: Renderer, controller
     updateDiagnostics(fps, frameMs) {
       const canvas = document.getElementById('canvas') as HTMLCanvasElement;
       const r = renderer.renderParams;
+      const gpuMs = renderer.supportsGPUTiming && renderer.gpuTimeMs !== null ? renderer.gpuTimeMs.toFixed(2) : 'n/a';
       diagText.textContent = [
         `FPS: ${fps.toFixed(0)}`,
-        `Frame: ${frameMs.toFixed(2)} ms`,
-        `Resolution: ${canvas.width}x${canvas.height}`,
+        `Frame (CPU): ${frameMs.toFixed(2)} ms`,
+        `Frame (GPU): ${gpuMs} ms`,
+        `Internal res: ${canvas.width}x${canvas.height}`,
         `Steps/Eps/Dist: ${r.maxSteps}/${r.epsilon}/${r.maxDistance}`,
         `GPU: ${renderer.adapterInfo}`,
       ].join('\n');

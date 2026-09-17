@@ -67,6 +67,7 @@ async function main(): Promise<void> {
       controller.zoom(wheel);
     }
     controller.update(dt, input);
+    renderer.refreshSize();
 
     const pose = controller.getPose();
     core.setCameraPosition(pose.position[0], pose.position[1], pose.position[2]);

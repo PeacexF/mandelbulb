@@ -24,9 +24,18 @@ struct MarchResult {
   steps: f32,
 };
 
+// Epsilon grows with distance travelled, matched to the world-space size of
+// one pixel at that distance: once we're within a pixel's footprint of the
+// surface, tighter precision is invisible and just costs extra steps.
+fn adaptive_epsilon(base_epsilon: f32, t: f32) -> f32 {
+  let tan_half_fov = tan(uniforms.resolution_time.w * 0.5);
+  let pixel_angular_size = 2.0 * tan_half_fov / uniforms.resolution_time.y;
+  return max(base_epsilon, pixel_angular_size * t);
+}
+
 fn ray_march(ro: vec3f, rd: vec3f) -> MarchResult {
   let max_steps = i32(uniforms.camera_forward_maxsteps.w);
-  let epsilon = uniforms.epsilon_maxdistance.x;
+  let base_epsilon = uniforms.epsilon_maxdistance.x;
   let max_distance = uniforms.epsilon_maxdistance.y;
 
   var t = 0.0;
@@ -35,7 +44,7 @@ fn ray_march(ro: vec3f, rd: vec3f) -> MarchResult {
     let p = ro + rd * t;
     let d = mandelbulb_de(p);
 
-    if (d < epsilon) {
+    if (d < adaptive_epsilon(base_epsilon, t)) {
       return MarchResult(true, t, f32(i));
     }
 
