@@ -4,6 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "wasm:build": "GOOS=js GOARCH=wasm go build -C .. -o web/public/mandelbulb.wasm ./wasm",
+    "wasm:exec": "cp \"$(go env GOROOT)/lib/wasm/wasm_exec.js\" public/wasm_exec.js",
+    "wasm": "npm run wasm:build && npm run wasm:exec",
+    "predev": "npm run wasm",
+    "prebuild": "npm run wasm",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",

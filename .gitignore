@@ -37,3 +37,5 @@ dist-ssr
 *.sw?
 notes/
 *.tsbuildinfo
+web/public/mandelbulb.wasm
+web/public/wasm_exec.js

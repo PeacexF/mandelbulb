@@ -122,14 +122,25 @@ export class CameraController {
     }
   }
 
-  getUniform(): CameraUniform {
+  getPose(): { position: Vec3; yaw: number; pitch: number; fov: number } {
     if (this.mode === 'free') {
-      const { forward, right, up } = basisFromYawPitch(this.free.yaw, this.free.pitch);
-      return { position: this.free.position, right, up, forward, fov: this.fov };
+      return { position: this.free.position, yaw: this.free.yaw, pitch: this.free.pitch, fov: this.fov };
     }
 
-    const { forward, right, up } = basisFromYawPitch(this.orbit.yaw, this.orbit.pitch);
+    const { forward } = basisFromYawPitch(this.orbit.yaw, this.orbit.pitch);
     const position = vSub(this.orbit.target, vScale(forward, this.orbit.distance));
-    return { position, right, up, forward, fov: this.fov };
+    return { position, yaw: this.orbit.yaw, pitch: this.orbit.pitch, fov: this.fov };
+  }
+
+  getUniform(): CameraUniform {
+    const pose = this.getPose();
+    const { forward, right, up } = basisFromYawPitch(pose.yaw, pose.pitch);
+    return { position: pose.position, right, up, forward, fov: pose.fov };
+  }
+
+  reset(): void {
+    this.mode = 'free';
+    this.free = { position: [0, 0, 3], yaw: 0, pitch: 0, velocity: [0, 0, 0] };
+    this.orbit = { target: [0, 0, 0], yaw: 0, pitch: 0, distance: 3 };
   }
 }
