@@ -27,6 +27,67 @@ func TestDistanceEstimateFarOutside(t *testing.T) {
 	}
 }
 
+func TestDefault(t *testing.T) {
+	m := Default()
+	if m.Power != 8 {
+		t.Errorf("expected default power 8, got %v", m.Power)
+	}
+	if m.Bailout != 2 {
+		t.Errorf("expected default bailout 2, got %v", m.Bailout)
+	}
+	if err := m.Validate(); err != nil {
+		t.Errorf("expected default parameters to be valid, got %v", err)
+	}
+}
+
+func TestDistanceEstimateFinite(t *testing.T) {
+	m := Default()
+	points := []mgl64.Vec3{
+		{0, 0, 0},
+		{1e-13, 0, 0},
+		{0, 1e-13, 0},
+		{0, 0, 1e-13},
+		{0.1, 0, 0},
+		{0, 0.1, 0},
+		{0, 0, 0.1},
+		{-1, -1, -1},
+		{1, 1, 1},
+		{0.5, -0.5, 0.5},
+		{2, 0, 0},
+		{0, 2, 0},
+		{0, 0, 2},
+		{5, 5, 5},
+		{-100, 3, -7},
+	}
+
+	for _, p := range points {
+		d := m.DistanceEstimate(p)
+		if math.IsNaN(d) || math.IsInf(d, 0) {
+			t.Errorf("point %v: expected finite value, got %v", p, d)
+		}
+	}
+}
+
+func TestDistanceEstimateFarOutsideVariousDirections(t *testing.T) {
+	m := Default()
+	dirs := []mgl64.Vec3{
+		{1, 0, 0}, {0, 1, 0}, {0, 0, 1},
+		{-1, 0, 0}, {0, -1, 0}, {0, 0, -1},
+		{1, 1, 1},
+	}
+
+	for _, dir := range dirs {
+		p := dir.Normalize().Mul(50)
+		d := m.DistanceEstimate(p)
+		if math.IsNaN(d) || math.IsInf(d, 0) {
+			t.Errorf("direction %v: expected finite value, got %v", dir, d)
+		}
+		if d <= 0 {
+			t.Errorf("direction %v: expected positive distance far outside the set, got %v", dir, d)
+		}
+	}
+}
+
 func TestDistanceEstimateMonotonicWithDistance(t *testing.T) {
 	m := Default()
 	near := m.DistanceEstimate(mgl64.Vec3{3, 0, 0})
@@ -44,8 +105,12 @@ func TestValidate(t *testing.T) {
 	}{
 		{"default", Default(), false},
 		{"zero power", Mandelbulb{Power: 0, Iterations: 8, Bailout: 2}, true},
+		{"negative power", Mandelbulb{Power: -1, Iterations: 8, Bailout: 2}, true},
 		{"zero iterations", Mandelbulb{Power: 8, Iterations: 0, Bailout: 2}, true},
+		{"negative iterations", Mandelbulb{Power: 8, Iterations: -1, Bailout: 2}, true},
 		{"zero bailout", Mandelbulb{Power: 8, Iterations: 8, Bailout: 0}, true},
+		{"negative bailout", Mandelbulb{Power: 8, Iterations: 8, Bailout: -2}, true},
+		{"power one", Mandelbulb{Power: 1, Iterations: 8, Bailout: 2}, false},
 	}
 
 	for _, c := range cases {
