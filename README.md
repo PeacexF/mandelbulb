@@ -4,7 +4,7 @@ Real-time 3D Mandelbulb renderer running in the browser.
 
 Built from scratch with **Go + WebAssembly + TypeScript + WebGPU + WGSL**.
 
-![Mandelbulb](./assets/preview.png)
+![Mandelbulb](./.github/img/preview.png)
 
 ## Stack
 

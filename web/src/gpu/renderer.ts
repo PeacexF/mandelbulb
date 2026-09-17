@@ -1,7 +1,29 @@
 import commonWGSL from '../../shaders/common.wgsl?raw';
+import mandelbulbWGSL from '../../shaders/mandelbulb.wgsl?raw';
 import fullscreenWGSL from '../../shaders/fullscreen.wgsl?raw';
 
-const UNIFORM_SIZE = 16;
+const UNIFORM_FLOATS = 24;
+const UNIFORM_SIZE = UNIFORM_FLOATS * 4;
+
+export interface FractalParams {
+  power: number;
+  iterations: number;
+  bailout: number;
+}
+
+export interface RenderParams {
+  maxSteps: number;
+  epsilon: number;
+  maxDistance: number;
+}
+
+export interface Camera {
+  position: [number, number, number];
+  right: [number, number, number];
+  up: [number, number, number];
+  forward: [number, number, number];
+  fov: number;
+}
 
 export class Renderer {
   private device: GPUDevice;
@@ -10,6 +32,16 @@ export class Renderer {
   private uniformBuffer: GPUBuffer;
   private bindGroup: GPUBindGroup;
   private startTime = performance.now();
+
+  fractal: FractalParams = { power: 8, iterations: 10, bailout: 2 };
+  renderParams: RenderParams = { maxSteps: 128, epsilon: 0.001, maxDistance: 50 };
+  camera: Camera = {
+    position: [0, 0, 3],
+    right: [1, 0, 0],
+    up: [0, 1, 0],
+    forward: [0, 0, -1],
+    fov: (60 * Math.PI) / 180,
+  };
 
   private constructor(
     device: GPUDevice,
@@ -20,7 +52,7 @@ export class Renderer {
     this.context = context;
 
     const module = device.createShaderModule({
-      code: `${commonWGSL}\n${fullscreenWGSL}`,
+      code: `${commonWGSL}\n${mandelbulbWGSL}\n${fullscreenWGSL}`,
     });
 
     this.pipeline = device.createRenderPipeline({
@@ -73,11 +105,27 @@ export class Renderer {
     canvas.height = height;
   }
 
-  render(): void {
+  private writeUniforms(): void {
     const canvas = this.context.canvas as HTMLCanvasElement;
     const time = (performance.now() - this.startTime) / 1000;
-    const uniformData = new Float32Array([canvas.width, canvas.height, time, 0]);
-    this.device.queue.writeBuffer(this.uniformBuffer, 0, uniformData);
+    const c = this.camera;
+    const f = this.fractal;
+    const r = this.renderParams;
+
+    const data = new Float32Array([
+      canvas.width, canvas.height, time, c.fov,
+      c.position[0], c.position[1], c.position[2], f.power,
+      c.right[0], c.right[1], c.right[2], f.iterations,
+      c.up[0], c.up[1], c.up[2], f.bailout,
+      c.forward[0], c.forward[1], c.forward[2], r.maxSteps,
+      r.epsilon, r.maxDistance, 0, 0,
+    ]);
+
+    this.device.queue.writeBuffer(this.uniformBuffer, 0, data);
+  }
+
+  render(): void {
+    this.writeUniforms();
 
     const encoder = this.device.createCommandEncoder();
     const pass = encoder.beginRenderPass({
