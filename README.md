@@ -55,6 +55,12 @@ Go core
 
 The expensive per-pixel work is performed on the GPU. Go and WebAssembly handle application-side state and numerical logic rather than transferring rendered pixels through the WASM boundary.
 
+For the actual math and a deeper architectural walkthrough, see:
+
+* [`docs/mandelbulb.md`](./docs/mandelbulb.md) — the fractal formula, distance estimation, sphere tracing, and shading
+* [`docs/architecture.md`](./docs/architecture.md) — how the Go/WASM/TypeScript/WGSL layers fit together
+* [`docs/precision.md`](./docs/precision.md) — where `f32` breaks down and what the renderer does about it
+
 ## Running
 
 Requirements:
@@ -67,24 +73,31 @@ Requirements:
 git clone https://github.com/PeacexF/mandelbulb
 cd mandelbulb
 
-make wasm
-npm install
-npm run dev
+make install
+make dev
 ```
 
 Open the local development server in a WebGPU-compatible browser.
 
+Other useful targets: `make build` (production bundle), `make test` (Go tests), `make check` (vet + lint + test + typecheck). Run `make help` for the full list.
+
 ## Controls
 
-| Key / Input | Action          |
-| ----------- | --------------- |
-| `W A S D`   | Move            |
-| `Q / E`     | Move vertically |
-| `Shift`     | Move faster     |
-| Mouse       | Look            |
-| `R`         | Reset camera    |
+| Key / Input   | Action                    |
+| ------------- | ------------------------- |
+| `W A S D`     | Move                      |
+| `Q / E`       | Move vertically           |
+| `Shift`       | Move faster               |
+| Mouse         | Look (click to lock)      |
+| `C`           | Toggle free-fly / orbit   |
+| Scroll        | Zoom (orbit mode)         |
+| `[` / `]`     | Decrease / increase power |
+| `R`           | Reset                     |
+| `H`           | Show / hide the panel     |
+| `1`–`6`       | Load a preset             |
 
-Additional controls are available in the UI.
+Fractal, renderer, camera, display, and post-processing parameters all have
+sliders in the panel, including saving/loading a full configuration as JSON.
 
 ## License
 
