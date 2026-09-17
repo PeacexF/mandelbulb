@@ -2,7 +2,7 @@ import commonWGSL from '../../shaders/common.wgsl?raw';
 import mandelbulbWGSL from '../../shaders/mandelbulb.wgsl?raw';
 import fullscreenWGSL from '../../shaders/fullscreen.wgsl?raw';
 
-const UNIFORM_FLOATS = 44;
+const UNIFORM_FLOATS = 48;
 const UNIFORM_SIZE = UNIFORM_FLOATS * 4;
 
 export interface FractalParams {
@@ -192,9 +192,15 @@ export class Renderer {
     const l = this.light;
     const d = this.display;
 
+    // Camera position is split into an f32 (hi, lo) pair so the shader can
+    // recover precision beyond a single f32 via compensated summation
+    // (world_pos in fullscreen.wgsl) — see docs/precision.md.
+    const posHi = c.position.map(Math.fround) as [number, number, number];
+    const posLo = c.position.map((x, i) => Math.fround(x - posHi[i])) as [number, number, number];
+
     const data = new Float32Array([
       canvas.width, canvas.height, time, c.fov,
-      c.position[0], c.position[1], c.position[2], f.power,
+      posHi[0], posHi[1], posHi[2], f.power,
       c.right[0], c.right[1], c.right[2], f.iterations,
       c.up[0], c.up[1], c.up[2], f.bailout,
       c.forward[0], c.forward[1], c.forward[2], r.maxSteps,
@@ -204,6 +210,7 @@ export class Renderer {
       l.shininess, l.shadowSoftness, 0, 0,
       d.exposure, d.gamma, d.fogDensity, d.aoIntensity,
       d.fogColor[0], d.fogColor[1], d.fogColor[2], 0,
+      posLo[0], posLo[1], posLo[2], 0,
     ]);
 
     this.device.queue.writeBuffer(this.uniformBuffer, 0, data);

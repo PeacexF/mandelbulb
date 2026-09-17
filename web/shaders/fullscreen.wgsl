@@ -22,6 +22,7 @@ struct MarchResult {
   hit: bool,
   distance: f32,
   steps: f32,
+  hit_pos: vec3f,
 };
 
 // Epsilon grows with distance travelled, matched to the world-space size of
@@ -33,7 +34,37 @@ fn adaptive_epsilon(base_epsilon: f32, t: f32) -> f32 {
   return max(base_epsilon, pixel_angular_size * t);
 }
 
-fn ray_march(ro: vec3f, rd: vec3f) -> MarchResult {
+// Exact (Knuth) sum of two f32s: returns the rounded sum plus the rounding
+// error that a plain f32 addition would have discarded.
+fn two_sum(a: f32, b: f32) -> vec2f {
+  let s = a + b;
+  let v = s - a;
+  let err = (a - (s - v)) + (b - v);
+  return vec2f(s, err);
+}
+
+// Reconstructs an absolute world position from a camera-relative offset.
+// The camera position is carried as an f32 (hi, lo) pair (see renderer.ts),
+// and two_sum recovers the rounding error a plain f32 add would lose when
+// combining a large-magnitude camera coordinate with a small local offset.
+// WGSL has no f64, so this double-single trick is the practical ceiling
+// short of arbitrary precision. See docs/precision.md.
+fn world_pos(local_offset: vec3f) -> vec3f {
+  let camera_hi = uniforms.camera_pos_power.xyz;
+  let camera_lo = uniforms.camera_pos_lo.xyz;
+
+  let sx = two_sum(camera_hi.x, local_offset.x);
+  let sy = two_sum(camera_hi.y, local_offset.y);
+  let sz = two_sum(camera_hi.z, local_offset.z);
+
+  return vec3f(
+    sx.x + (sx.y + camera_lo.x),
+    sy.x + (sy.y + camera_lo.y),
+    sz.x + (sz.y + camera_lo.z),
+  );
+}
+
+fn ray_march(rd: vec3f) -> MarchResult {
   let max_steps = i32(uniforms.camera_forward_maxsteps.w);
   let base_epsilon = uniforms.epsilon_maxdistance.x;
   let max_distance = uniforms.epsilon_maxdistance.y;
@@ -41,21 +72,21 @@ fn ray_march(ro: vec3f, rd: vec3f) -> MarchResult {
   var t = 0.0;
 
   for (var i = 0; i < max_steps; i = i + 1) {
-    let p = ro + rd * t;
+    let p = world_pos(rd * t);
     let d = mandelbulb_de(p);
 
     if (d < adaptive_epsilon(base_epsilon, t)) {
-      return MarchResult(true, t, f32(i));
+      return MarchResult(true, t, f32(i), p);
     }
 
     t = t + d;
 
     if (t > max_distance) {
-      return MarchResult(false, t, f32(i));
+      return MarchResult(false, t, f32(i), p);
     }
   }
 
-  return MarchResult(false, t, f32(max_steps));
+  return MarchResult(false, t, f32(max_steps), world_pos(rd * t));
 }
 
 fn soft_shadow(ro: vec3f, rd: vec3f) -> f32 {
@@ -128,7 +159,6 @@ fn fs_main(in: VertexOut) -> @location(0) vec4f {
   let aspect = res.x / res.y;
   let ndc = vec2f((in.uv.x * 2.0 - 1.0) * aspect, in.uv.y * 2.0 - 1.0);
 
-  let camera_pos = uniforms.camera_pos_power.xyz;
   let camera_right = uniforms.camera_right_iterations.xyz;
   let camera_up = uniforms.camera_up_bailout.xyz;
   let camera_forward = uniforms.camera_forward_maxsteps.xyz;
@@ -139,11 +169,12 @@ fn fs_main(in: VertexOut) -> @location(0) vec4f {
     camera_forward + camera_right * ndc.x * tan_half_fov + camera_up * ndc.y * tan_half_fov,
   );
 
-  let result = ray_march(camera_pos, rd);
+  let result = ray_march(rd);
 
   if (result.hit) {
-    let pos = camera_pos + rd * result.distance;
-    let normal = mandelbulb_normal(pos);
+    let pos = result.hit_pos;
+    let normal_h = max(1e-6, adaptive_epsilon(uniforms.epsilon_maxdistance.x, result.distance) * 0.5);
+    let normal = mandelbulb_normal(pos, normal_h);
     let color = shade(pos, rd, normal);
 
     let fog_density = uniforms.display_params.z;
