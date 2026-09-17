@@ -25,9 +25,6 @@ struct MarchResult {
 };
 
 fn ray_march(ro: vec3f, rd: vec3f) -> MarchResult {
-  let power = uniforms.camera_pos_power.w;
-  let iterations = i32(uniforms.camera_right_iterations.w);
-  let bailout = uniforms.camera_up_bailout.w;
   let max_steps = i32(uniforms.camera_forward_maxsteps.w);
   let epsilon = uniforms.epsilon_maxdistance.x;
   let max_distance = uniforms.epsilon_maxdistance.y;
@@ -36,7 +33,7 @@ fn ray_march(ro: vec3f, rd: vec3f) -> MarchResult {
 
   for (var i = 0; i < max_steps; i = i + 1) {
     let p = ro + rd * t;
-    let d = mandelbulb_de(p, power, iterations, bailout);
+    let d = mandelbulb_de(p);
 
     if (d < epsilon) {
       return MarchResult(true, t, f32(i));
@@ -50,6 +47,62 @@ fn ray_march(ro: vec3f, rd: vec3f) -> MarchResult {
   }
 
   return MarchResult(false, t, f32(max_steps));
+}
+
+fn soft_shadow(ro: vec3f, rd: vec3f) -> f32 {
+  let k = uniforms.shading_extra.y;
+  let max_distance = uniforms.epsilon_maxdistance.y;
+
+  var result = 1.0;
+  var t = 0.01;
+
+  for (var i = 0; i < 32; i = i + 1) {
+    let d = mandelbulb_de(ro + rd * t);
+    if (d < 0.0001) {
+      return 0.0;
+    }
+    result = min(result, k * d / t);
+    t = t + clamp(d, 0.005, 0.5);
+    if (t > max_distance) {
+      break;
+    }
+  }
+
+  return clamp(result, 0.0, 1.0);
+}
+
+fn ambient_occlusion(pos: vec3f, normal: vec3f) -> f32 {
+  var occlusion = 0.0;
+  var scale = 1.0;
+
+  for (var i = 1; i <= 5; i = i + 1) {
+    let h = 0.02 * f32(i);
+    let d = mandelbulb_de(pos + normal * h);
+    occlusion = occlusion + (h - d) * scale;
+    scale = scale * 0.6;
+  }
+
+  return clamp(1.0 - occlusion, 0.0, 1.0);
+}
+
+fn shade(pos: vec3f, rd: vec3f, normal: vec3f) -> vec3f {
+  let light_dir = normalize(uniforms.light_dir_ambient.xyz);
+  let ambient = uniforms.light_dir_ambient.w;
+  let light_color = uniforms.light_color_specular.xyz;
+  let specular_intensity = uniforms.light_color_specular.w;
+  let shininess = uniforms.shading_extra.x;
+
+  let diffuse = max(dot(normal, light_dir), 0.0);
+
+  let view_dir = normalize(-rd);
+  let half_dir = normalize(light_dir + view_dir);
+  let specular = pow(max(dot(normal, half_dir), 0.0), shininess) * specular_intensity;
+
+  let shadow = soft_shadow(pos + normal * 0.001, light_dir);
+  let ao = ambient_occlusion(pos, normal);
+
+  let lit = light_color * (diffuse + specular) * shadow;
+  return (lit + vec3f(ambient)) * ao;
 }
 
 @fragment
@@ -70,11 +123,12 @@ fn fs_main(in: VertexOut) -> @location(0) vec4f {
   );
 
   let result = ray_march(camera_pos, rd);
-  let max_steps = f32(i32(uniforms.camera_forward_maxsteps.w));
 
   if (result.hit) {
-    let shade = 1.0 - clamp(result.steps / max_steps, 0.0, 1.0);
-    return vec4f(vec3f(shade), 1.0);
+    let pos = camera_pos + rd * result.distance;
+    let normal = mandelbulb_normal(pos);
+    let color = shade(pos, rd, normal);
+    return vec4f(color, 1.0);
   }
 
   let sky = mix(vec3f(0.02, 0.02, 0.05), vec3f(0.0, 0.0, 0.0), ndc.y * 0.5 + 0.5);

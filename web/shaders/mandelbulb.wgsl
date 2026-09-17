@@ -1,4 +1,8 @@
-fn mandelbulb_de(pos: vec3f, power: f32, iterations: i32, bailout: f32) -> f32 {
+fn mandelbulb_de(pos: vec3f) -> f32 {
+  let power = uniforms.camera_pos_power.w;
+  let iterations = i32(uniforms.camera_right_iterations.w);
+  let bailout = uniforms.camera_up_bailout.w;
+
   var z = pos;
   var dr = 1.0;
   var r = 0.0;
@@ -29,4 +33,17 @@ fn mandelbulb_de(pos: vec3f, power: f32, iterations: i32, bailout: f32) -> f32 {
     return 0.0;
   }
   return 0.5 * log(r) * r / dr;
+}
+
+fn mandelbulb_normal(pos: vec3f) -> vec3f {
+  let h = 0.0001;
+  let dx = vec3f(h, 0.0, 0.0);
+  let dy = vec3f(0.0, h, 0.0);
+  let dz = vec3f(0.0, 0.0, h);
+
+  return normalize(vec3f(
+    mandelbulb_de(pos + dx) - mandelbulb_de(pos - dx),
+    mandelbulb_de(pos + dy) - mandelbulb_de(pos - dy),
+    mandelbulb_de(pos + dz) - mandelbulb_de(pos - dz),
+  ));
 }

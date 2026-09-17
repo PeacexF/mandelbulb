@@ -2,7 +2,7 @@ import commonWGSL from '../../shaders/common.wgsl?raw';
 import mandelbulbWGSL from '../../shaders/mandelbulb.wgsl?raw';
 import fullscreenWGSL from '../../shaders/fullscreen.wgsl?raw';
 
-const UNIFORM_FLOATS = 24;
+const UNIFORM_FLOATS = 36;
 const UNIFORM_SIZE = UNIFORM_FLOATS * 4;
 
 export interface FractalParams {
@@ -25,6 +25,15 @@ export interface Camera {
   fov: number;
 }
 
+export interface LightParams {
+  direction: [number, number, number];
+  ambient: number;
+  color: [number, number, number];
+  specularIntensity: number;
+  shininess: number;
+  shadowSoftness: number;
+}
+
 export class Renderer {
   private device: GPUDevice;
   private context: GPUCanvasContext;
@@ -41,6 +50,14 @@ export class Renderer {
     up: [0, 1, 0],
     forward: [0, 0, -1],
     fov: (60 * Math.PI) / 180,
+  };
+  light: LightParams = {
+    direction: [0.5, 0.8, 0.3],
+    ambient: 0.15,
+    color: [1, 0.95, 0.9],
+    specularIntensity: 0.5,
+    shininess: 32,
+    shadowSoftness: 16,
   };
 
   private constructor(
@@ -111,6 +128,7 @@ export class Renderer {
     const c = this.camera;
     const f = this.fractal;
     const r = this.renderParams;
+    const l = this.light;
 
     const data = new Float32Array([
       canvas.width, canvas.height, time, c.fov,
@@ -119,6 +137,9 @@ export class Renderer {
       c.up[0], c.up[1], c.up[2], f.bailout,
       c.forward[0], c.forward[1], c.forward[2], r.maxSteps,
       r.epsilon, r.maxDistance, 0, 0,
+      l.direction[0], l.direction[1], l.direction[2], l.ambient,
+      l.color[0], l.color[1], l.color[2], l.specularIntensity,
+      l.shininess, l.shadowSoftness, 0, 0,
     ]);
 
     this.device.queue.writeBuffer(this.uniformBuffer, 0, data);

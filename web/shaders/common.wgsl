@@ -5,6 +5,9 @@ struct Uniforms {
   camera_up_bailout: vec4f,
   camera_forward_maxsteps: vec4f,
   epsilon_maxdistance: vec4f,
+  light_dir_ambient: vec4f,
+  light_color_specular: vec4f,
+  shading_extra: vec4f,
 };
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
