@@ -40,7 +40,8 @@ export async function loadCore(): Promise<MandelbulbCore> {
   });
 
   const go = new window.Go();
-  const result = await WebAssembly.instantiateStreaming(fetch('/mandelbulb.wasm'), go.importObject);
+  const wasmUrl = `${import.meta.env.BASE_URL}mandelbulb.wasm`;
+  const result = await WebAssembly.instantiateStreaming(fetch(wasmUrl), go.importObject);
   void go.run(result.instance);
 
   await ready;
